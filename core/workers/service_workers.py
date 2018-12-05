@@ -1,7 +1,7 @@
 import sys
 import datetime
 # If you complete the module, you can uncomment this import
-# from core.engine.autoquit import autoquit_run
+from core.engine.autoquit import autoquit_run
 
 
 class WorkersList(type):
@@ -52,7 +52,5 @@ class Autoquit(BaseWorker):
 
     def run(self):
         self.old_time = datetime.datetime.utcnow()
-        # autoquit = Process(target=autoquit_run, args=(self.tAPI,))
-        # autoquit.start()
         autoquit_run(self.tAPI)
         return 1

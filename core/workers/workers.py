@@ -40,7 +40,13 @@ class BaseWorker(object, metaclass=WorkersList):
     
     def __init__(self, teleapi):
         self.tAPI = teleapi
-        self.MENU_KEYBOARD = []
+        self.MENU_KEYBOARD = [
+            [{'text': "Получить фильм(ы), из которого персонаж", 'callback_data': Encyclopedia.COMMAND+'ch'}],
+            #[{'text': "Получить список персонажей фильма", 'callback_data': Encyclopedia.COMMAND+'m'}],
+            #[{'text': "Найти фильм/персонажей по приблизительной цитате", 'callback_data': Encyclopedia.COMMAND}],
+            #[{'text': "Получить список найденных мною фильмов и персонажей по цитате", 'callback_data': Encyclopedia.COMMAND}],
+            [{'text': "Помощь/дополнительная информация", 'callback_data': Info.COMMAND}]
+        ]
 
 
 
@@ -49,9 +55,8 @@ class Blacklist(BaseWorker):
 
     def is_it_for_me(self, tmsg):
         if self.tAPI.DB_IS_ENABLED:
-            collection = self.tAPI.db.blacklist
             return ((tmsg.text.startswith("/addbl")) or (tmsg.text.startswith("/delbl")) or
-                    (collection.find_one({"pers_id": str(tmsg.pers_id)}) is not None))
+                    (self.tAPI.db_shell.is_in_blacklist(tmsg.pers_id)))
         return False
 
     def run(self, tmsg):
@@ -76,18 +81,28 @@ class Stop(BaseWorker):
         pass
 
 
-#TODO: Rename, change the command and the help info.
-class Example(BaseWorker):
-    COMMAND = "/example"
-    HELP = COMMAND + " - an command example\n\n"
+class Encyclopedia(BaseWorker):
+    COMMAND = "/encyc"
+    HELP = COMMAND + " - call encyclopedia menu\n\n"
 
     waitlist = dict()
 
     def is_it_for_me(self, tmsg):
-        return tmsg.text.startswith(self.COMMAND) or tmsg.is_inline
+        return tmsg.text.startswith(self.COMMAND) or ((tmsg.pers_id, tmsg.chat_id) in self.waitlist)
 
     def run(self, tmsg):
-        #TODO: Add the logic of message processing
+        if (tmsg.pers_id == tmsg.chat_id):
+            self.tAPI.db_shell.modify_last_activity(tmsg.pers_id, False)
+        command = tmsg.text.split()
+        if command.endswith('ch'):
+            if len(command) > 1:
+                self.tAPI.db_shell.get_movie_of_character(" ".join(command[1:]))
+            else:
+                self.waitlist[(tmsg.pers_id, tmsg.chat_id)] = 'ch'
+                if tmsg.is_inline:
+                    self.tAPI.edit("Type the character name", tmsg.chat_id, None, tmsg.id)
+                else:
+                    self.tAPI.send("Type the character name", tmsg.chat_id, reply_to_message_id=tmsg.id)
         return 0
 
     def quit(self, pers_id, chat_id, additional_info = '', msg_id = 0):
@@ -105,6 +120,10 @@ class Info(BaseWorker):
         return tmsg.text.startswith(self.COMMAND) or tmsg.text.startswith("/start")
 
     def run(self, tmsg):
+        if tmsg.text.startswith("/start"):
+            self.tAPI.db_shell.initialize_user(tmsg.pers_id)
+        if (tmsg.pers_id == tmsg.chat_id):
+            self.tAPI.db_shell.modify_last_activity(tmsg.pers_id, False)
         HELP = ""
         for worker in WorkersList.workers:
             HELP += worker[1].HELP

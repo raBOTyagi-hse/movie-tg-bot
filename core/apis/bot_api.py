@@ -3,8 +3,7 @@
 import requests
 import json
 from core.workers.service_workers import WorkersList as ServiceWorkersList
-
-from telegram.ext import Updater
+from core.services.db_shell import DBShell
 
 __author__ = 'NickVeld'
 
@@ -20,6 +19,9 @@ class API:
 
         self.workers_list = None
 
+        self.db_shell = DBShell()
+        self.DB_IS_ENABLED = False
+
     def get_from_config(self, cfg):
         self.admin_ids = list(cfg['admins_ids'])
 
@@ -27,6 +29,9 @@ class API:
 
         self.telegram.get_from_config(cfg['APIs'])
         self.additional.get_from_config(cfg['APIs'])
+
+        self.DB_IS_ENABLED = cfg['db_settings']['isEnabled'] == 'True'
+        self.db_shell.get_from_config(cfg)
 
         self.service_workers_list = ServiceWorkersList.get_workers(ServiceWorkersList
                                                                    , cfg["included_service_workers"], self)
