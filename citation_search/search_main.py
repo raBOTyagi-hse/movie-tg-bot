@@ -16,12 +16,12 @@ words_eng = r'[A-Za-z]+'
 words_ru = r'[А-Яа-я]+'
 
 class MovieSearch:
-    def __init__(self, pairs, mode='eng'):
-        # ???
+    def __init__(self, pairs, mode='eng', stopwords_flag=True):
         self.pairs = pairs
         self.ids = [pair[0] for pair in pairs]
         self.tfidfs = []
         self.mode = mode
+        self.stopwords_flag = stopwords_flag
         words = []
         docs = [pair[1] for pair in pairs]
         self.docs = [self.preprocess(doc) for doc in docs]
@@ -35,22 +35,26 @@ class MovieSearch:
         if self.mode == 'eng+ru':
             return self.preprocess_eng(raw) + self.preprocess_ru(raw)
 
-    @staticmethod
-    def preprocess_eng(raw):
+    def preprocess_eng(self, raw):
         doc = []
         text = re.findall(words_eng, raw)
         for token in text:
             token = token.lower()
-            if token not in stopwords_eng:
+            if self.stopwords_flag:
+                if token not in stopwords_eng:
+                    doc.append(stemmer.stem(token))
+            else:
                 doc.append(stemmer.stem(token))
         return doc
 
-    @staticmethod
-    def preprocess_ru(raw):
+    def preprocess_ru(self, raw):
         doc = []
         text = re.findall(words_ru, raw)
         for token in text:
-            if token not in stopwords_ru:
+            if self.stopwords_flag:
+                if token not in stopwords_ru:
+                    doc.append(morph.parse(token)[0].normal_form)
+            else:
                 doc.append(morph.parse(token)[0].normal_form)
         return doc
 
