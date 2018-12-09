@@ -30,8 +30,9 @@ class API:
         self.telegram.get_from_config(cfg['APIs'])
         self.additional.get_from_config(cfg['APIs'])
 
-        self.DB_IS_ENABLED = cfg['db_settings']['isEnabled'] == 'True'
-        self.db_shell.get_from_config(cfg)
+        self.DB_IS_ENABLED = cfg['db_settings']['is_enabled'] == 'True'
+        if self.DB_IS_ENABLED:
+            self.db_shell.get_from_config(cfg)
 
         self.service_workers_list = ServiceWorkersList.get_workers(ServiceWorkersList
                                                                    , cfg["included_service_workers"], self)
@@ -213,7 +214,7 @@ class Tg_api:
                     api_key=self.API_KEY,
                     method=method
                 ),
-                params=params,
+                params=params,#'&'.join('='.join(i) for i in params.items()),
                 timeout=30
             )
             sended = json.loads(req.text)
