@@ -15,7 +15,7 @@ class BotCycle:
         try:
             for msg in self.tapi.get_msg():
                 tmsg = Msg(msg, self.tapi.BOT_NICK)
-                if (tmsg.msg == None) or tmsg.text.startswith("//"):
+                if (tmsg.msg is None) or tmsg.text.startswith("//"):
                     continue
                 if tmsg.text != "":
                     print(tmsg.text)
