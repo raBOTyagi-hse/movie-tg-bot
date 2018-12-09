@@ -41,17 +41,30 @@ class BaseWorker(object, metaclass=WorkersList):
     def __init__(self, teleapi):
         self.tAPI = teleapi
         self.MENU_KEYBOARD = [
-            [{'text': "Получить фильм(ы), из которого персонаж", 'callback_data': Encyclopedia.COMMAND+'ch'}],
-            #[{'text': "Получить список персонажей фильма", 'callback_data': Encyclopedia.COMMAND+'m'}],
-            #[{'text': "Найти фильм/персонажей по приблизительной цитате", 'callback_data': Encyclopedia.COMMAND}],
-            #[{'text': "Получить список найденных мною фильмов и персонажей по цитате", 'callback_data': Encyclopedia.COMMAND}],
-            [{'text': "Помощь/дополнительная информация", 'callback_data': Info.COMMAND}]
+            [{'callback_data': Encyclopedia.COMMAND + '1',
+              #'text': "Get movies with the entered character",
+              'text': "Получить фильм(ы), из которого(ых) введенный персонаж", }],
+            [{'callback_data': Encyclopedia.COMMAND + '2',
+              #'text': "Get all characters of the entered movie",
+              'ltext': "Получить список персонажей введенного фильма", }],
+            [{'callback_data': Encyclopedia.COMMAND + '3',
+              'text': "Получить самые разыскиваемые фильмы"}],
+            [{'callback_data': Encyclopedia.COMMAND + '4',
+              'text': "Получить информацию о распределении по годам производства фильмов"}],
+            [{'callback_data': Encyclopedia.COMMAND + '5',
+              'text': "Получить информацию о количестве фильмов произведенных в один год с похожим рейтингом"}],
+            # [{'callback_data': Encyclopedia.COMMAND + '6',
+            #  'text': "Получить список найденных мною фильмов"}],
+            # [{'callback_data': Encyclopedia.COMMAND + '7',
+            #  'text': "Найти фильм/персонажей по приблизительной цитате"}],
+            [{'callback_data': Info.COMMAND,
+              'text': "Помощь/дополнительная информация"}]
         ]
 
 
 
 class Blacklist(BaseWorker):
-    # HELP = "There is a blacklist for rude users!\n\n"
+    HELP = ""  # "There is a blacklist for rude users!\n\n"
 
     def is_it_for_me(self, tmsg):
         if self.tAPI.DB_IS_ENABLED:
@@ -66,6 +79,23 @@ class Blacklist(BaseWorker):
     def quit(self, pers_id, chat_id, additional_info = '', msg_id=None):
         pass
 
+class Humanity(BaseWorker):
+    HELP = "Поддерживается понимание некоторых свободных фраз\n\n"
+
+    def __init__(self, teleapi):
+        super(Humanity, self).__init__(teleapi)
+        self.waitlist = set()
+        import re
+        self.re = re
+
+    def is_it_for_me(self, tmsg):
+        return not (tmsg.text.startswith('/') or tmsg.is_inline)
+
+    def run(self, tmsg):
+        return 1
+
+    def quit(self, pers_id, chat_id, additional_info = '', msg_id = 0):
+        pass
 
 class Stop(BaseWorker):
     COMMAND = "/StopPls"
@@ -83,7 +113,7 @@ class Stop(BaseWorker):
 
 class Encyclopedia(BaseWorker):
     COMMAND = "/encyc"
-    HELP = COMMAND + " - call encyclopedia menu\n\n"
+    HELP = COMMAND + " - вызывает меню энциклопедии\n\n"
 
     waitlist = dict()
 
@@ -93,20 +123,57 @@ class Encyclopedia(BaseWorker):
     def run(self, tmsg):
         if (tmsg.pers_id == tmsg.chat_id):
             self.tAPI.db_shell.modify_last_activity(tmsg.pers_id, False)
-        command = tmsg.text.split()
-        if command.endswith('ch'):
+        if (tmsg.pers_id, tmsg.chat_id) in self.waitlist:
+            query = tmsg.text
+            command = self.waitlist[(tmsg.pers_id, tmsg.chat_id)]
+        else:
+            command = tmsg.text.split()
+            query = " ".join(command[1:])
+            command = command[0]
+        if command.endswith(Encyclopedia.COMMAND):
+            self.tAPI.send_inline_keyboard("Меню энциклопедии", tmsg.chat_id,
+                                           [x for x in self.MENU_KEYBOARD if x['callback_data'].startswith(Encyclopedia.COMMAND)],
+                                           tmsg.id)
+        elif command.endswith('1'):
             if len(command) > 1:
-                self.tAPI.db_shell.get_movie_of_character(" ".join(command[1:]))
+                ms = "Персонаж играет в:\n"  # "The character plays in:\n"
+                self.tAPI.send_inline_keyboard(ms + ("\n".join(self.tAPI.db_shell.get_movies_of_character(query.upper()))),
+                               tmsg.chat_id, self.MENU_KEYBOARD, tmsg.id)
             else:
-                self.waitlist[(tmsg.pers_id, tmsg.chat_id)] = 'ch'
+                self.waitlist[(tmsg.pers_id, tmsg.chat_id)] = '1'
+                ms = "Введеите имя персонажа"  # "Type the character name"
                 if tmsg.is_inline:
-                    self.tAPI.edit("Type the character name", tmsg.chat_id, None, tmsg.id)
+                    self.tAPI.edit(ms, tmsg.chat_id, None, tmsg.id)
                 else:
-                    self.tAPI.send("Type the character name", tmsg.chat_id, reply_to_message_id=tmsg.id)
+                    self.tAPI.send(ms, tmsg.chat_id, reply_to_message_id=tmsg.id)
+        elif command.endswith('2'):
+            if len(command) > 1:
+                ms = "Этот персонаж(и) играет в {}:\n{}"  # "This(ese) character(s) play in {}:\n{}"
+                self.tAPI.send(ms.format(query,"\n".join(self.tAPI.db_shell.get_characters_of_movie(query.lower()))),
+                               tmsg.chat_id, self.MENU_KEYBOARD, tmsg.id)
+            else:
+                self.waitlist[(tmsg.pers_id, tmsg.chat_id)] = '2'
+                ms = "Введите название фильма" # "Type the movie title"
+                if tmsg.is_inline:
+                    self.tAPI.edit(ms, tmsg.chat_id, None, tmsg.id)
+                else:
+                    self.tAPI.send(ms, tmsg.chat_id, reply_to_message_id=tmsg.id)
+        elif command.endswith('3'):
+            ms = "Самый разыскиваемые фильмы:\n"  # "The most searched movies:\n"
+            self.tAPI.send(ms + ("\n".join(self.tAPI.db_shell.get_most_searched_films())),
+                           tmsg.chat_id, self.MENU_KEYBOARD, tmsg.id)
+        elif command.endswith('4'):
+            ms = "Ссылка на гистограмму годов производства фильмов"  # "Link to movies production years histogram:
+            self.tAPI.send(ms + "\nhttp://nminec.ddns.net/years_hist",
+                tmsg.chat_id, self.MENU_KEYBOARD, tmsg.id)
+        elif command.endswith('5'):
+            ms = "Ссылка на кросстаблицу, которая содержит количество фильмов с одним годом производства и похожим рейтином"
+                # "Link to crosstable that contains the amount of movies with equal production year and similiar rating"
+            self.tAPI.send(ms + ":\nhttp://nminec.ddns.net/years_hist",
+                tmsg.chat_id, self.MENU_KEYBOARD, tmsg.id)
         return 0
 
     def quit(self, pers_id, chat_id, additional_info = '', msg_id = 0):
-        #TODO: Feel free to change
         if (pers_id, chat_id) in self.waitlist:
             self.waitlist.pop((pers_id, chat_id))
             if additional_info != '':
@@ -129,6 +196,22 @@ class Info(BaseWorker):
             HELP += worker[1].HELP
         HELP = HELP[:-2]
         self.tAPI.send_inline_keyboard(HELP, tmsg.chat_id, self.MENU_KEYBOARD)
+        return 0
+
+    def quit(self, pers_id, chat_id, additional_info = '', msg_id = 0):
+        pass
+
+class Catcher(BaseWorker):
+    HELP = "Если вы напишите неподдерживаемую команду, бот предупредит об этом.\n\n"
+            # "If you write unsupported command, the bot will warn about it.\n\n"
+
+    def is_it_for_me(self, tmsg):
+        return True
+
+    def run(self, tmsg):
+        self.tAPI.send_inline_keyboard("Вы ввели неподдерживаемую или нераспозанную команду"
+                                        # "You type unsupported or not recognized command"
+                                       , tmsg.chat_id, self.MENU_KEYBOARD)
         return 0
 
     def quit(self, pers_id, chat_id, additional_info = '', msg_id = 0):
