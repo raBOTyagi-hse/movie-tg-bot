@@ -28,17 +28,20 @@ class DBShell:
     def is_in_blacklist(self, pers_id):
         return False
 
-    def initialize_user(self, pers_id):
-        self.db.execute("INSERT INTO Users VALUES ({}, {})".format(pers_id, datetime.datetime.min))
+    def initialize_user(self, pers_id, username):
+        try:
+            self.db.execute("INSERT INTO Users VALUES ({}, '{}', '{}')".format(pers_id, username, datetime.datetime.min))
+        except mysql.connector.errors.IntegrityError:
+            pass
 
     def update_last_activity(self, pers_id, after_quit):
         if not self.db is None:
-            self.db.execute("UPDATE Users SET uLast_activity = {} WHERE uId = {};".format(
+            self.db.execute("UPDATE Users SET uLast_activity = '{}' WHERE uId = {};".format(
                                 datetime.datetime.min if after_quit else datetime.datetime.utcnow(), pers_id))
 
 
     def get_ready_for_autoquit(self):
-        self.db.execute("SELECT uId FROM Users WHERE uLast_activity > {} AND uLast_activity < {};".format(
+        self.db.execute("SELECT uId FROM Users WHERE uLast_activity > '{}' AND uLast_activity < '{}';".format(
                          datetime.datetime.min, datetime.datetime.utcnow() - datetime.timedelta(minutes=(self.INACT_M-1))))
         return list(map(lambda x: x[0], self.db))
 
@@ -61,7 +64,45 @@ class DBShell:
 FROM Movies AS M
 JOIN Queries AS Q ON M.mId = Q.movie_usedId
 GROUP BY M.mTitle, Q.movie_usedId
-ORDER BY COUNT(Q.movie_usedId); ''')
+ORDER BY COUNT(Q.movie_usedId);''')
+
         return list(self.db)
+
+    def get_user_history(self, pers_id):
+        self.db.execute('SELECT qText FROM Quries WHERE userId = {};'.format(pers_id))
+        return list(map(lambda x: x[0], self.db))
+
+    def add_user_history(self, pers_id, query, movie_usedId):
+        self.db.execute('INSERT INTO Queries (userId, movie_usedId, qText, qDate) VALUES (%s, %s, %s, %s)',
+                        (pers_id, movie_usedId, query, datetime.datetime.now()))
+
+    def delete_user_history(self, pers_id):
+        self.db.execute('DELETE FROM Users WHERE uId = {};'.format(pers_id))
+        self.initialize_user(pers_id)
+        return 0
+
+    def delete_movie(self, movie):
+        if isinstance(movie, int):
+            self.db.execute('DELETE FROM Movies WHERE mId = {};'.format(movie))
+        else:
+            self.db.execute("SELECT mId FROM Movies WHERE mTitle = '{}';".format(movie))
+            res = list(map(lambda x: x[0], self.db))
+            if len(res) > 1:
+                return 1
+            if len(res) == 1:
+                return self.delete_movie(res[0])
+        return 0
+
+    def delete_character(self, character):
+        if isinstance(character, int):
+            self.db.execute('DELETE FROM Characters WHERE chId = {};'.format(character))
+        else:
+            self.db.execute("SELECT chId FROM Characters WHERE chName = '{}';".format(character))
+            res = list(map(lambda x: x[0], self.db))
+            if len(res) > 1:
+                return 1
+            elif len(res) == 1:
+                return self.delete_character(res[0])
+        return 0
 
 
