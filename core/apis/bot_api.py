@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 
+import time
 import requests
 import json
 from core.workers.service_workers import WorkersList as ServiceWorkersList
@@ -10,8 +11,7 @@ __author__ = 'NickVeld'
 
 class API:
     def __init__(self):
-        self.telegram = Tg_api()
-        self.additional = Additional()
+        self.telegram = Tg_bot()
         self.offset = 0
 
         self.admin_ids = list()
@@ -28,7 +28,6 @@ class API:
         self.BOT_NICK = cfg['APIs']['bot_nick']
 
         self.telegram.get_from_config(cfg['APIs'])
-        self.additional.get_from_config(cfg['APIs'])
 
         self.DB_IS_ENABLED = cfg['db_settings']['is_enabled'] == 'True'
         if self.DB_IS_ENABLED:
@@ -49,9 +48,10 @@ class API:
                         break
             new_msgs = self.get(self.offset)
             if new_msgs is None:
+                time.sleep(10)
                 continue
 
-            for msg in new_msgs['result']:
+            for msg in new_msgs:
                 self.offset = msg['update_id']
                 yield msg
 
@@ -107,7 +107,7 @@ class Tg_api:
 
             new_msgs = json.loads(req.text)
             if new_msgs['ok'] and (len(new_msgs['result']) != 0):
-                return new_msgs
+                return new_msgs['result']
         except requests.exceptions.Timeout:
             print("Timeout in get()!")
         except Exception as ex:
@@ -257,10 +257,105 @@ class Tg_api:
             print(type(ex), ex.__str__())
         return message
 
-#TODO: Use it if you need more APIs
-class Additional:
+class Tg_bot:
     def __init__(self):
         pass
 
     def get_from_config(self, cfg):
-        pass
+        from telegram import Bot
+        from telegram.utils.request import Request
+        self.bot = Bot(cfg['telegram_api'], request=Request(proxy_url="http://142.93.203.206:8080", connect_timeout=10))#, base_url=cfg['telegram_chatlink'])
+
+    def get(self, toffset=0, timeout=29):
+        try:
+            new_msgs = self.bot.get_updates(offset=toffset + 1, timeout=timeout)
+            print(new_msgs)
+            if len(new_msgs) != 0:
+                return new_msgs
+        except Exception as ex:
+            print("Error in get()!")
+            print(type(ex), ex.__str__())
+        return None
+
+    def send(self, message, chat_id, reply_to_message_id=None):
+        try:
+            sended = self.bot.send_message(chat_id, message,
+                                           disable_web_page_preview=True,
+                                           reply_to_message_id=reply_to_message_id)
+            return sended.message_id
+        except Exception as ex:
+            print("Error in send()!")
+            print(type(ex), ex.__str__())
+        return 0
+
+    def get_reply_keyboard(self, source):
+        return [["/{}".format(c) for c in s_in.split('\t')] for s_in in source.split('\n')]
+
+    def send_reply_keyboard(self, message, chat_id, keyboard, reply_to_message_id=0):
+        method = 'sendMessage'
+        params = {
+            'chat_id': chat_id,
+            'disable_web_page_preview': True,
+            'text': message
+        }
+        if reply_to_message_id:
+            params['reply_to_message_id'] = reply_to_message_id
+        if keyboard != None:
+            params["reply_markup"] = json.dumps({
+                "keyboard": keyboard,
+                "resize_keyboard": True,
+                "one_time_keyboard": True,
+                "selective": True
+            })
+        try:
+            raise NotImplementedError("")
+        except Exception as ex:
+            print("Error in send_reply_keyboard(...)!")
+            print(type(ex), ex.__str__())
+        return 0
+
+    def get_inline_text_keyboard(self, source):
+        return list([[{'text': c,
+                       'callback_data': "/{}".format(c)} for c in s_in.split('\t')] for s_in in source.split('\n')])
+
+    def send_inline_keyboard(self, message, chat_id, inline_keyboard, reply_to_message_id=0, image_url = ""):
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        if inline_keyboard != None:
+            reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton(d["text"], callback_data=d["callback_data"])
+                             for d in i] for i in inline_keyboard])
+        else:
+            reply_markup = None
+        try:
+            if (image_url == ""):
+                sended = self.bot.send_message(chat_id, message,
+                                               disable_web_page_preview=True,
+                                               reply_to_message_id=reply_to_message_id,
+                                               reply_markup=reply_markup)
+            else:
+                sended = self.bot.send_photo(chat_id, image_url, caption=message,
+                                             reply_to_message_id=reply_to_message_id,
+                                             reply_markup=reply_markup)
+
+            return sended.message_id
+        except Exception as ex:
+            print("Error in send_inline_keyboard(...)!")
+            print(type(ex), ex.__str__())
+        return 0
+
+    def edit(self, message, chat_id, inline_keyboard, message_id):
+        from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+        if inline_keyboard != None:
+            reply_markup = InlineKeyboardMarkup([[InlineKeyboardButton(d["text"], callback_data=d["callback_data"])
+                             for d in i] for i in inline_keyboard])
+        else:
+            reply_markup = None
+        try:
+            self.bot.edit_message_text(text=message,
+                                        chat_id=chat_id,
+                                        message_id=message_id,
+                                        disable_web_page_preview=True,
+                                        reply_markup=reply_markup)
+        except Exception as ex:
+            print("Error in edit(...)!")
+            print(type(ex), ex.__str__())
+        return message
