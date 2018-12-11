@@ -48,7 +48,7 @@ class API:
                         break
             new_msgs = self.get(self.offset)
             if new_msgs is None:
-                time.sleep(10)
+                time.sleep(3)
                 continue
 
             for msg in new_msgs:
@@ -264,7 +264,11 @@ class Tg_bot:
     def get_from_config(self, cfg):
         from telegram import Bot
         from telegram.utils.request import Request
-        self.bot = Bot(cfg['telegram_api'], request=Request(proxy_url="http://142.93.203.206:8080", connect_timeout=10))#, base_url=cfg['telegram_chatlink'])
+        from telegram.error import TimedOut
+        self.bot = Bot(cfg['telegram_api'],
+                       request=Request(proxy_url="http://142.93.203.206:8080", connect_timeout=10),
+                       base_url=cfg['telegram_chatlink'])
+        self.TimedOut = TimedOut
 
     def get(self, toffset=0, timeout=29):
         try:
@@ -272,6 +276,8 @@ class Tg_bot:
             print(new_msgs)
             if len(new_msgs) != 0:
                 return new_msgs
+        except self.TimedOut:
+            pass
         except Exception as ex:
             print("Error in get()!")
             print(type(ex), ex.__str__())
