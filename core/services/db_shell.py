@@ -68,18 +68,24 @@ ORDER BY COUNT(Q.movie_usedId);''')
 
         return list(self.db)
 
+    def get_all_lines(self):
+        self.db.execute('SELECT lId, lText FROM MovieLines LIMIT 5;')
+        return list(self.db)
+
+    def get_line_movie_title_and_speaker(self, line_id):
+        self.db.execute('SELECT lText, mId, mTitle, characterName FROM MovieLines JOIN Movies ON mId = movieId WHERE lId = {};'.format(line_id))
+        return list(self.db)[0]
+
     def get_user_history(self, pers_id):
-        self.db.execute('SELECT qText FROM Quries WHERE userId = {};'.format(pers_id))
+        self.db.execute('SELECT qText FROM Queries WHERE userId = {};'.format(pers_id))
         return list(map(lambda x: x[0], self.db))
 
     def add_user_history(self, pers_id, query, movie_usedId):
-        self.db.execute('INSERT INTO Queries (userId, movie_usedId, qText, qDate) VALUES (%s, %s, %s, %s)',
-                        (pers_id, movie_usedId, query, datetime.datetime.now()))
+        self.db.execute("INSERT INTO Queries (userId, movie_usedId, qText, qDate) VALUES ({}, {}, '{}', '{}')".format(pers_id, movie_usedId, query, datetime.datetime.now()))
 
-    def delete_user_history(self, pers_id):
+    def delete_user_history(self, pers_id, username):
         self.db.execute('DELETE FROM Users WHERE uId = {};'.format(pers_id))
-        self.initialize_user(pers_id)
-        return 0
+        self.initialize_user(pers_id, username)
 
     def delete_movie(self, movie):
         if isinstance(movie, int):
@@ -91,7 +97,6 @@ ORDER BY COUNT(Q.movie_usedId);''')
                 return 1
             if len(res) == 1:
                 return self.delete_movie(res[0])
-        return 0
 
     def delete_character(self, character):
         if isinstance(character, int):
@@ -103,6 +108,4 @@ ORDER BY COUNT(Q.movie_usedId);''')
                 return 1
             elif len(res) == 1:
                 return self.delete_character(res[0])
-        return 0
-
 
