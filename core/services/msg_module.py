@@ -75,14 +75,14 @@ class Msg():
 
     def text_change_to(self, new_value):
         if self.inline_data == None:
-            self.msg['text'] = new_value
+            self.text = new_value
         else:
             self.inline_data = new_value
 
-    def text_replace(self, template, new_value, func=None):
+    def text_replace(self, template, new_value, func=(lambda x, y, z: z.replace(x, y))):
         if self.inline_data == None:
-            strk = self.msg['text']
-            self.msg['text'] = func(template, new_value, strk)
+            strk = self.text
+            self.text = func(template, new_value, strk)
 
     def textmod(self):
         if self.inline_data == None:
