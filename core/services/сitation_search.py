@@ -61,8 +61,6 @@ class CitationSearch:
     def get_tf(self, term, document):
         return self.corpus.tf(term, document)
 
-    def get_logtf(self, term, document):
-        return np.log(self.corpus.tf(term, document)) + 1
 
     def get_idf(self, term):
         return self.corpus.idf(term)
@@ -79,7 +77,7 @@ class CitationSearch:
         for doc in self.docs:
             doc_tfs = {}
             for term in doc:
-                doc_tfs[term] = self.get_logtf(term, doc) * self.get_idf(term)
+                doc_tfs[term] = self.get_tf(term, doc) * self.get_idf(term)
             doc_vector = self.normalize_cosine(doc, list(doc_tfs.values()))
             doc_tfidfs = {}
             for term, vec in zip(doc_tfs, doc_vector):
@@ -93,12 +91,13 @@ class CitationSearch:
         #print(query)
         query_tfsidfs = {}
         for term in query:
-           query_tfsidfs[term] = self.get_logtf(term, query) * self.get_idf(term)
+           query_tfsidfs[term] = self.get_tf(term, query) * self.get_idf(term)
         return query_tfsidfs
 
     def query_relevance(self, query):
         tfidf = self.tfidf_queries(query)
         query_vec = list(tfidf.values())
+        print(query_vec)
         doc_vecs = []
         for doc in self.tfidfs:
             #print(doc)
@@ -108,6 +107,7 @@ class CitationSearch:
                     doc_vec.append(doc[term_query])
                 else:
                     doc_vec.append(0)
+            print(doc_vec)
             doc_vecs.append(doc_vec)
         cosines = []
         for vec in doc_vecs:
@@ -115,6 +115,7 @@ class CitationSearch:
                 cosines.append(1 - cosine(vec, query_vec))
             else:
                 cosines.append(0)
-        relevance_ids = [text_id for _, text_id in sorted(zip(cosines, self.ids), reverse=True)]
+        print(cosines)
+        relevance_ids = [text_id for _, text_id in sorted(zip(cosines, self.ids), key=(lambda x: x[0]), reverse=True)]
         cosines.sort(reverse=True)
         return relevance_ids[0], cosines[0]
