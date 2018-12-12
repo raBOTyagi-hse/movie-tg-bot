@@ -79,7 +79,7 @@ class MovieSearch:
         for doc in self.docs:
             doc_tfs = {}
             for term in doc:
-                doc_tfs[term] = self.get_logtf(term, doc)
+                doc_tfs[term] = self.get_logtf(term, doc) * self.get_idf(term)
             doc_vector = self.normalize_cosine(doc, list(doc_tfs.values()))
             doc_tfidfs = {}
             for term, vec in zip(doc_tfs, doc_vector):
@@ -109,14 +109,12 @@ class MovieSearch:
                 else:
                     doc_vec.append(0)
             doc_vecs.append(doc_vec)
-            #print(doc_vec)
         cosines = []
         for vec in doc_vecs:
             if np.any(vec):
                 cosines.append(1 - cosine(vec, query_vec))
             else:
                 cosines.append(0)
-        #print(cosines)
         relevance_ids = [text_id for _, text_id in sorted(zip(cosines, self.ids), reverse=True)]
         cosines.sort(reverse=True)
         return relevance_ids[0], cosines[0]
@@ -124,8 +122,8 @@ class MovieSearch:
 
 # example
 '''
-test = [['10563', 'Daddy, people expect me to be there!'], [25, 'Here, you put your hand under the water and I will pump for you']]
-testsearch = MovieSearch(test, mode='eng+ru')
+test = [['10563', 'О каком персонаже говорится'], [25, 'В каком фильме говорится']]
+testsearch = MovieSearch(test, mode='ru', stopwords_flag=False)
 testsearch.tfidf_docs()
-print(testsearch.query_relevance('В каком фильме говорится: put you hand over the water, Daddy, and I will pump'))
+print(testsearch.query_relevance('В каком фильме говорится'))
 '''
