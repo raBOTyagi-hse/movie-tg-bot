@@ -4,7 +4,6 @@ import numpy as np
 import re
 import pymorphy2
 from scipy.spatial.distance import cosine
-from nltk import word_tokenize
 from nltk.corpus import stopwords
 from nltk.stem.snowball import SnowballStemmer
 
@@ -18,14 +17,17 @@ words_ru = r'[А-Яа-я]+'
 
 class CitationSearch:
     def __init__(self, pairs, mode='eng', stopwords_flag=True):
-        self.pairs = pairs
+        self.pair_dict = {}
         self.ids = [pair[0] for pair in pairs]
         self.tfidfs = []
         self.mode = mode
         self.stopwords_flag = stopwords_flag
         docs = [pair[1] for pair in pairs]
         self.docs = [self.preprocess(doc) for doc in docs]
+        for id, text in zip (self.ids, self.docs):
+            self.pair_dict[id] = text
         self.corpus = TextCollection(self.docs)
+        self.query = []
 
     def preprocess(self, raw):
         if self.mode == 'eng':
@@ -87,27 +89,24 @@ class CitationSearch:
         self.tfidfs = doc_vectors
 
     def tfidf_queries(self, query):
-        query = self.preprocess(query)
+        self.query = self.preprocess(query)
         #print(query)
         query_tfsidfs = {}
-        for term in query:
-           query_tfsidfs[term] = self.get_tf(term, query) * self.get_idf(term)
+        for term in self.query:
+           query_tfsidfs[term] = self.get_tf(term, self.query) * self.get_idf(term)
         return query_tfsidfs
 
     def query_relevance(self, query):
         tfidf = self.tfidf_queries(query)
         query_vec = list(tfidf.values())
-        print(query_vec)
         doc_vecs = []
         for doc in self.tfidfs:
-            #print(doc)
             doc_vec = []
             for term_query in tfidf:
                 if term_query in doc:
                     doc_vec.append(doc[term_query])
                 else:
                     doc_vec.append(0)
-            print(doc_vec)
             doc_vecs.append(doc_vec)
         cosines = []
         for vec in doc_vecs:
@@ -115,7 +114,23 @@ class CitationSearch:
                 cosines.append(1 - cosine(vec, query_vec))
             else:
                 cosines.append(0)
-        print(cosines)
         relevance_ids = [text_id for _, text_id in sorted(zip(cosines, self.ids), key=(lambda x: x[0]), reverse=True)]
         cosines.sort(reverse=True)
-        return relevance_ids[0], cosines[0]
+        most_relevant = relevance_ids[0]
+        relevant_candidates = [relevance_ids[0]]
+        for cos in range(1,len(cosines)):
+            if cosines[0] - cosines[cos] <= 0.000001:
+                relevant_candidates.append(relevance_ids[cos])
+        if len(relevant_candidates) > 1:
+            tiebreaker = []
+            for id in relevant_candidates:
+                rel_text = self.pair_dict[id]
+                absent_words = 0
+                for word in rel_text:
+                    if word not in self.query:
+                        absent_words += 1
+                tiebreaker.append(absent_words)
+            relevant_candidates = [text_id for _, text_id in sorted(zip(tiebreaker, relevant_candidates),
+                                                                    key=(lambda x: x[0]))]
+            most_relevant = relevant_candidates[0]
+        return most_relevant, cosines[0]
