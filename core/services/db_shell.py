@@ -64,13 +64,20 @@ class DBShell:
 FROM Movies AS M
 JOIN Queries AS Q ON M.mId = Q.movie_usedId
 GROUP BY M.mTitle, Q.movie_usedId
-ORDER BY COUNT(Q.movie_usedId);''')
+ORDER BY COUNT(Q.movie_usedId) DESC;''')
 
-        return list(self.db)
+        return list(map(lambda x: (x[0], str(x[1])), self.db))
 
     def get_all_lines(self):
-        self.db.execute('SELECT lId, lText FROM MovieLines LIMIT 5;')
-        return list(self.db)
+        limNumber = 100
+        movie_ids = [55, 433, 529, 579, 614]
+
+        result = []
+
+        for mId in movie_ids:
+            self.db.execute(f'SELECT lId, lText FROM MovieLines WHERE movieId = {mId} LIMIT {limNumber};')
+            result += self.db
+        return result
 
     def get_line_movie_title_and_speaker(self, line_id):
         self.db.execute('SELECT lText, mId, mTitle, characterName FROM MovieLines JOIN Movies ON mId = movieId WHERE lId = {};'.format(line_id))
