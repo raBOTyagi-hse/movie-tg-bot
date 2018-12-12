@@ -85,12 +85,10 @@ class CitationSearch:
             for term, vec in zip(doc_tfs, doc_vector):
                 doc_tfidfs[term] = vec
             doc_vectors.append(doc_tfidfs)
-        #print(doc_vectors)
         self.tfidfs = doc_vectors
 
     def tfidf_queries(self, query):
         self.query = self.preprocess(query)
-        #print(query)
         query_tfsidfs = {}
         for term in self.query:
            query_tfsidfs[term] = self.get_tf(term, self.query) * self.get_idf(term)
