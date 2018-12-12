@@ -31,6 +31,8 @@ class BotCycle:
                                     break
                     except UnicodeEncodeError:
                         print(self.tapi.send("I do not like this language!", tmsg.chat_id))
+                    except AttributeError:
+                        print("msg is not found issue")
                 if not is_running:
                     break
         except Exception as ex:
