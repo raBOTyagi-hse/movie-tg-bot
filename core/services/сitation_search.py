@@ -119,11 +119,3 @@ class CitationSearch:
         relevance_ids = [text_id for _, text_id in sorted(zip(cosines, self.ids), key=(lambda x: x[0]), reverse=True)]
         cosines.sort(reverse=True)
         return relevance_ids[0], cosines[0]
-
-#exapmles
-
-test = [[1, 'Помощь / дополнительная информация'], ['123', 'Помощь / дополнительная информация']]
-
-testsearch = CitationSearch(test, mode='ru', stopwords_flag=False)
-testsearch.tfidf_docs()
-print(testsearch.query_relevance('помощь'))
