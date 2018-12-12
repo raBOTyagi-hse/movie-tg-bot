@@ -15,14 +15,14 @@ morph = pymorphy2.MorphAnalyzer()
 words_eng = r'[A-Za-z]+'
 words_ru = r'[А-Яа-я]+'
 
-class MovieSearch:
+
+class CitationSearch:
     def __init__(self, pairs, mode='eng', stopwords_flag=True):
         self.pairs = pairs
         self.ids = [pair[0] for pair in pairs]
         self.tfidfs = []
         self.mode = mode
         self.stopwords_flag = stopwords_flag
-        words = []
         docs = [pair[1] for pair in pairs]
         self.docs = [self.preprocess(doc) for doc in docs]
         self.corpus = TextCollection(self.docs)
@@ -118,12 +118,3 @@ class MovieSearch:
         relevance_ids = [text_id for _, text_id in sorted(zip(cosines, self.ids), reverse=True)]
         cosines.sort(reverse=True)
         return relevance_ids[0], cosines[0]
-
-
-# example
-'''
-test = [['10563', 'О каком персонаже говорится'], [25, 'В каком фильме говорится']]
-testsearch = MovieSearch(test, mode='ru', stopwords_flag=False)
-testsearch.tfidf_docs()
-print(testsearch.query_relevance('В каком фильме говорится'))
-'''
