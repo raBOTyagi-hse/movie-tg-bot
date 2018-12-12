@@ -48,7 +48,6 @@ class API:
                         break
             new_msgs = self.get(self.offset)
             if new_msgs is None:
-                time.sleep(3)
                 continue
 
             for msg in new_msgs:
@@ -273,7 +272,6 @@ class Tg_bot:
     def get(self, toffset=0, timeout=29):
         try:
             new_msgs = self.bot.get_updates(offset=toffset + 1, timeout=timeout)
-            print(new_msgs)
             if len(new_msgs) != 0:
                 return new_msgs
         except self.TimedOut:
